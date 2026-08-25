@@ -1,3 +1,31 @@
+# About this fork
+
+This is a fork of [junegunn/fzf](https://github.com/junegunn/fzf) with a enhancements.
+
+## Enhancement
+
+### Environment variables for configuring `fzf-tmux`
+
+The following environment variables have been added:
+
+  - FZF_CTRL_T_TMUX_OPTS
+  - FZF_CTRL_R_TMUX_OPTS
+  - FZF_ALT_C_TMUX_OPTS
+
+#### Example
+
+The settings below open `CTRL-R` in a split pane, while `CTRL-T` and `ALT-C` appear as popups:
+
+```bash
+export FZF_CTRL_R_TMUX_OPTS="-d 60%"
+export FZF_CTRL_T_TMUX_OPTS="-p 70%,65%"
+export FZF_ALT_C_TMUX_OPTS="-p 50%,50%"
+```
+
+The original README follows.
+
+-----
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf-color.png" alt="fzf - a command-line fuzzy finder">
   <a href="https://github.com/junegunn/fzf/actions"><img src="https://github.com/junegunn/fzf/actions/workflows/linux.yml/badge.svg?branch=master" alt="Build Status"></a>
