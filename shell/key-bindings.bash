@@ -6,10 +6,13 @@
 #
 # - $FZF_CTRL_T_COMMAND
 # - $FZF_CTRL_T_OPTS
+# - $FZF_CTRL_T_TMUX_OPTS
 # - $FZF_CTRL_R_COMMAND
 # - $FZF_CTRL_R_OPTS
+# - $FZF_CTRL_R_TMUX_OPTS
 # - $FZF_ALT_C_COMMAND
 # - $FZF_ALT_C_OPTS
+# - $FZF_ALT_C_TMUX_OPTS
 
 if [[ $- =~ i ]]; then
 
@@ -50,15 +53,19 @@ __fzf_exec_awk() {
 __fzf_select__() {
   FZF_DEFAULT_COMMAND=${FZF_CTRL_T_COMMAND:-} \
     FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse --walker=file,dir,follow,hidden --scheme=path" "${FZF_CTRL_T_OPTS-} -m") \
-    FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) "$@" |
+    FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_T_TMUX_OPTS) "$@" |
     while read -r item; do
       printf '%q ' "$item" # escape special chars
     done
 }
 
 __fzfcmd() {
-  [[ -n ${TMUX_PANE-} ]] && { [[ ${FZF_TMUX:-0} != 0 ]] || [[ -n ${FZF_TMUX_OPTS-} ]]; } &&
-    echo "fzf-tmux ${FZF_TMUX_OPTS:--d${FZF_TMUX_HEIGHT:-40%}} -- " || echo "fzf"
+  # $1: optional, name of variable containing keybind-specific tmux opts (e.g. FZF_CTRL_T_TMUX_OPTS)
+  local specific_opts="${1:+${!1}}"
+  local tmux_opts="${specific_opts:-${FZF_TMUX_OPTS-}}"
+
+  [[ -n ${TMUX_PANE-} ]] && { [[ ${FZF_TMUX:-0} != 0 ]] || [[ -n ${tmux_opts-} ]]; } &&
+    echo "fzf-tmux ${tmux_opts:--d${FZF_TMUX_HEIGHT:-40%}} -- " || echo "fzf"
 }
 
 fzf-file-widget() {
@@ -72,7 +79,7 @@ __fzf_cd__() {
   dir=$(
     FZF_DEFAULT_COMMAND=${FZF_ALT_C_COMMAND:-} \
       FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse --walker=dir,follow,hidden --scheme=path" "${FZF_ALT_C_OPTS-} +m") \
-      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd)
+      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_ALT_C_TMUX_OPTS)
   ) && printf 'builtin cd -- %q' "$(builtin unset CDPATH && builtin cd -- "$dir" && builtin pwd)"
 }
 
@@ -100,7 +107,7 @@ if command -v perl > /dev/null; then
       builtin fc -lnr -2147483648 |
         last_hist=$(HISTTIMEFORMAT='' builtin history 1) command perl -n -l0 -e "$script" |
         FZF_DEFAULT_OPTS=$(__fzf_defaults "" "-n2..,.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --wrap-sign '"$'\t'"↳ ' --highlight-line --bind 'shift-delete:execute-silent(cat {+f1} >> \"$deletefile\")+exclude-multi' --multi ${FZF_CTRL_R_OPTS-} --read0") \
-        FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) --query "$READLINE_LINE"
+        FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_R_TMUX_OPTS) --query "$READLINE_LINE"
     )
     __fzf_history_delete "$deletefile"
     command rm -f "$deletefile"
@@ -127,7 +134,7 @@ else # awk - fallback for POSIX systems
       builtin fc -lnr -2147483648 2> /dev/null | # ( $'\t '<lines>$'\n' )* ; <lines> ::= [^\n]* ( $'\n'<lines> )*
         __fzf_exec_awk "$script" |               # ( <counter>$'\t'<lines>$'\000' )*
         FZF_DEFAULT_OPTS=$(__fzf_defaults "" "-n2..,.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --wrap-sign '"$'\t'"↳ ' --highlight-line --bind 'shift-delete:execute-silent(cat {+f1} >> \"$deletefile\")+exclude-multi' --multi ${FZF_CTRL_R_OPTS-} --read0") \
-        FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) --query "$READLINE_LINE"
+        FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_R_TMUX_OPTS) --query "$READLINE_LINE"
     )
     __fzf_history_delete "$deletefile"
     command rm -f "$deletefile"

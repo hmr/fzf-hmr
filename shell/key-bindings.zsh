@@ -6,10 +6,13 @@
 #
 # - $FZF_CTRL_T_COMMAND
 # - $FZF_CTRL_T_OPTS
+# - $FZF_CTRL_T_TMUX_OPTS
 # - $FZF_CTRL_R_COMMAND
 # - $FZF_CTRL_R_OPTS
+# - $FZF_CTRL_R_TMUX_OPTS
 # - $FZF_ALT_C_COMMAND
 # - $FZF_ALT_C_OPTS
+# - $FZF_ALT_C_TMUX_OPTS
 
 
 # Key bindings
@@ -73,7 +76,7 @@ __fzf_select() {
   local item
   FZF_DEFAULT_COMMAND=${FZF_CTRL_T_COMMAND:-} \
   FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse --walker=file,dir,follow,hidden --scheme=path" "${FZF_CTRL_T_OPTS-} -m") \
-  FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) "$@" < /dev/tty | while read -r item; do
+  FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_T_TMUX_OPTS) "$@" < /dev/tty | while read -r item; do
     echo -n -E "${(q)item} "
   done
   local ret=$?
@@ -82,8 +85,12 @@ __fzf_select() {
 }
 
 __fzfcmd() {
-  [ -n "${TMUX_PANE-}" ] && { [ "${FZF_TMUX:-0}" != 0 ] || [ -n "${FZF_TMUX_OPTS-}" ]; } &&
-    echo "fzf-tmux ${FZF_TMUX_OPTS:--d${FZF_TMUX_HEIGHT:-40%}} -- " || echo "fzf"
+  # $1: optional, name of variable containing keybind-specific tmux opts (e.g. FZF_CTRL_T_TMUX_OPTS)
+  local specific_opts="${1:+${(P)1}}"
+  local tmux_opts="${specific_opts:-${FZF_TMUX_OPTS-}}"
+
+  [ -n "${TMUX_PANE-}" ] && { [ "${FZF_TMUX:-0}" != 0 ] || [ -n "${tmux_opts-}" ]; } &&
+    echo "fzf-tmux ${tmux_opts:--d${FZF_TMUX_HEIGHT:-40%}} -- " || echo "fzf"
 }
 
 fzf-file-widget() {
@@ -105,7 +112,7 @@ fzf-cd-widget() {
   local dir="$(
     FZF_DEFAULT_COMMAND=${FZF_ALT_C_COMMAND:-} \
     FZF_DEFAULT_OPTS=$(__fzf_defaults "--reverse --walker=dir,follow,hidden --scheme=path" "${FZF_ALT_C_OPTS-} +m") \
-    FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd) < /dev/tty)"
+    FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_ALT_C_TMUX_OPTS) < /dev/tty)"
   if [[ -z "$dir" ]]; then
     zle redisplay
     return 0
@@ -143,11 +150,11 @@ fzf-history-widget() {
     selected="$(printf '%s\t%s\000' "${(kv)history[@]}" |
       perl -0 -ne 'if (!$seen{(/^\s*[0-9]+\**\t(.*)/s, $1)}++) { s/\n/\n\t/g; print; }' |
       FZF_DEFAULT_OPTS=$(__fzf_defaults "" "-n2..,.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --wrap-sign '\t↳ ' --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER} --read0") \
-      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd))"
+      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_R_TMUX_OPTS))"
   else
     selected="$(fc -rl 1 | __fzf_exec_awk '{ cmd=$0; sub(/^[ \t]*[0-9]+\**[ \t]+/, "", cmd); if (!seen[cmd]++) print $0 }' |
       FZF_DEFAULT_OPTS=$(__fzf_defaults "" "-n2..,.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --wrap-sign '\t↳ ' --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER}") \
-      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd))"
+      FZF_DEFAULT_OPTS_FILE='' $(__fzfcmd FZF_CTRL_R_TMUX_OPTS))"
   fi
   local ret=$?
   local -a cmds

@@ -6,10 +6,13 @@
 #
 # - $FZF_CTRL_T_COMMAND
 # - $FZF_CTRL_T_OPTS
+# - $FZF_CTRL_T_TMUX_OPTS
 # - $FZF_CTRL_R_COMMAND
 # - $FZF_CTRL_R_OPTS
+# - $FZF_CTRL_R_TMUX_OPTS
 # - $FZF_ALT_C_COMMAND
 # - $FZF_ALT_C_OPTS
+# - $FZF_ALT_C_TMUX_OPTS
 
 # Key bindings
 # ------------
@@ -37,9 +40,23 @@ function fzf_key_bindings
   end
 
   function __fzfcmd
+    # $argv[1]: optional, name of variable containing keybind-specific tmux opts (e.g. FZF_CTRL_T_TMUX_OPTS)
     test -n "$FZF_TMUX_HEIGHT"; or set -l FZF_TMUX_HEIGHT 40%
-    if test -n "$FZF_TMUX_OPTS"
-      echo "fzf-tmux $FZF_TMUX_OPTS -- "
+
+    set -l specific_opts
+    if test (count $argv) -ge 1; and set -q $argv[1]
+      set specific_opts $$argv[1]
+    end
+
+    set -l tmux_opts
+    if test -n "$specific_opts"
+      set tmux_opts $specific_opts
+    else if test -n "$FZF_TMUX_OPTS"
+      set tmux_opts $FZF_TMUX_OPTS
+    end
+
+    if test -n "$tmux_opts"
+      echo "fzf-tmux $tmux_opts -- "
     else if test "$FZF_TMUX" = "1"
       echo "fzf-tmux -d$FZF_TMUX_HEIGHT -- "
     else
@@ -115,7 +132,7 @@ function fzf_key_bindings
     set -lx FZF_DEFAULT_COMMAND "$FZF_CTRL_T_COMMAND"
     set -lx FZF_DEFAULT_OPTS_FILE
 
-    set -l result (eval (__fzfcmd) --walker-root=$dir --query=$fzf_query | string split0)
+    set -l result (eval (__fzfcmd FZF_CTRL_T_TMUX_OPTS) --walker-root=$dir --query=$fzf_query | string split0)
     and commandline -rt -- (string join -- ' ' $prefix(string escape -n -- $result))' '
 
     commandline -f repaint
@@ -157,7 +174,7 @@ function fzf_key_bindings
     # Merge history from other sessions before searching
     test -z "$fish_private_mode"; and builtin history merge
 
-    if set -l result (eval $FZF_DEFAULT_COMMAND \| (__fzfcmd) --query=$fzf_query | string split0)
+    if set -l result (eval $FZF_DEFAULT_COMMAND \| (__fzfcmd FZF_CTRL_R_TMUX_OPTS) --query=$fzf_query | string split0)
       if test "$total_lines" -eq 1
         commandline -- $result
       else
@@ -184,7 +201,7 @@ function fzf_key_bindings
     set -lx FZF_DEFAULT_OPTS_FILE
     set -lx FZF_DEFAULT_COMMAND "$FZF_ALT_C_COMMAND"
 
-    if set -l result (eval (__fzfcmd) --query=$fzf_query --walker-root=$dir | string split0)
+    if set -l result (eval (__fzfcmd FZF_ALT_C_TMUX_OPTS) --query=$fzf_query --walker-root=$dir | string split0)
       cd -- $result
       commandline -rt -- $prefix
     end
